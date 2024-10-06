@@ -1,3 +1,5 @@
+import time
+
 from decouple import config
 import requests
 from django.db import transaction
@@ -11,18 +13,24 @@ from user_collection.serializers import MovieSerializer
 
 class UserManagement:
     @staticmethod
-    def get_movies_list():
+    def get_movies_list(retries=3, delay=2):
         url = 'https://demo.credy.in/api/v1/maya/movies/'
         headers = {
             'Username': CLIENT_KEY,
             'Password': CLIENT_PASS
         }
-        response = requests.get(url, headers=headers, verify=False)
-        if response.status_code == 200:
-            data = response.json()
-            return data
-        else:
-            print(f"Failed to connect: {response.status_code}")
+        for attempt in range(retries):
+            try:
+                response = requests.get(url, headers=headers, verify=False)
+                if response.status_code == 200:
+                    return response.json()
+                else:
+                    print(f"Attempt {attempt + 1}: Failed to connect, status code {response.status_code}")
+            except requests.exceptions.RequestException as e:
+                raise Exception(f"Attempt {attempt + 1}: Exception occurred: {e}")
+            time.sleep(delay)
+        raise Exception(f"Failed to connect after {retries} attempts.")
+
 
     @staticmethod
     def get_user_collection(request):
