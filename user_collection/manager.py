@@ -13,6 +13,7 @@ CLIENT_PASS = config('SECRET_PASS')
 
 
 class UserManagement:
+
     @staticmethod
     def get_movies_list(retries=3, delay=2):
         url = 'https://demo.credy.in/api/v1/maya/movies/'
@@ -137,3 +138,11 @@ class CollectionManagement:
             }
 
             return response_data
+
+    @staticmethod
+    def delete_collection(request, kwargs):
+        user_id = request.user.id
+        collection_uuid = kwargs.get('collection_uuid')
+        collection = Collection.objects.get(uuid=collection_uuid, user_id=user_id)
+        collection.delete()
+

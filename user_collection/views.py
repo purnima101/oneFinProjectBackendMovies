@@ -94,10 +94,7 @@ class CollectionDetailView(APIView):
     @staticmethod
     def delete(request, *args, **kwargs):
         try:
-            user_id= request.user.id
-            collection_uuid = kwargs.get('collection_uuid')
-            collection = Collection.objects.get(uuid=collection_uuid, user_id=user_id)
-            collection.delete()
+            CollectionManagement.delete_collection(request, kwargs)
             return Response({"is_success": True, "message": "Collection deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
         except Collection.DoesNotExist:
             return Response({"result": "failure", "message": "Collection not found."}, status=status.HTTP_404_NOT_FOUND)
