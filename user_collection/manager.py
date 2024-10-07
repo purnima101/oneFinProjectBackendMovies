@@ -1,14 +1,15 @@
 import time
-
 from decouple import config
 import requests
 from django.db import transaction
+from rest_framework.exceptions import ValidationError
+
 from user_collection.models import Collection, Movie, CollectionMap
 from collections import Counter
+from user_collection.serializers import MovieSerializer
 
 CLIENT_KEY = config('SECRET_KEY')
 CLIENT_PASS = config('SECRET_PASS')
-from user_collection.serializers import MovieSerializer
 
 
 class UserManagement:
@@ -24,13 +25,10 @@ class UserManagement:
                 response = requests.get(url, headers=headers, verify=False)
                 if response.status_code == 200:
                     return response.json()
-                else:
-                    print(f"Attempt {attempt + 1}: Failed to connect, status code {response.status_code}")
             except requests.exceptions.RequestException as e:
                 raise Exception(f"Attempt {attempt + 1}: Exception occurred: {e}")
             time.sleep(delay)
         raise Exception(f"Failed to connect after {retries} attempts.")
-
 
     @staticmethod
     def get_user_collection(request):
@@ -59,11 +57,22 @@ class CollectionManagement:
     @staticmethod
     def add_new_collection(request, data):
         user_id = request.user.id
+        title = data.get('title')
+        description = data.get('description')
+        movies = data.get('movies')
+        if not title:
+            raise ValidationError("Title is missing")
+        if not description:
+            raise ValidationError("Description is missing")
+        if not movies:
+            raise ValidationError("Movies is missing")
+
         with transaction.atomic():
-            if Collection.objects.filter(title__iexact=data['title'], user_id=user_id).exists():
+            if Collection.objects.filter(title__iexact=title, user_id=user_id).exists():
                 raise Exception("A collection with this title already exists.")
-            collection = Collection.objects.create(title=data['title'], user_id=user_id, description=data['description'])
-            for i in data['movies']:
+            collection = Collection.objects.create(title=title, user_id=user_id,
+                                                   description=description)
+            for i in movies:
                 movie = Movie.objects.filter(uuid=i['uuid']).first()
                 if not movie:
                     movie = Movie.objects.create(
@@ -88,7 +97,6 @@ class CollectionManagement:
         top_genres = genre_counts.most_common(3)
         favourite_genres = [genre for genre, count in top_genres]
         return collections_objs, favourite_genres
-
 
     @staticmethod
     def get_collection_data_for_a_user(collection_uuid, user_id):
@@ -129,5 +137,3 @@ class CollectionManagement:
             }
 
             return response_data
-
-

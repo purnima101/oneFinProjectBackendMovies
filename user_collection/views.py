@@ -1,3 +1,4 @@
+from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.cache import cache
 from rest_framework.views import APIView
@@ -7,6 +8,7 @@ from user_collection.manager import UserManagement, CollectionManagement
 from user_collection.models import Collection, Movie
 from user_collection.serializers import UserSerializer
 from rest_framework import status
+
 
 class RegisterUser(APIView):
     @staticmethod
@@ -29,12 +31,14 @@ class FetchAllMovies(APIView):
     def get(request):
         try:
             data = UserManagement.get_movies_list()
-            return Response({"result" : "success", "data": data}, 200)
+            return Response({"result": "success", "data": data}, 200)
         except Exception as e:
-            return Response({"result" : "failure", "message":str(e)}, 500)
+            return Response({"result": "failure", "message": str(e)}, 500)
+
 
 class UserCollection(APIView):
     permission_classes = [IsAuthenticated]
+
     @staticmethod
     def get(request):
         try:
@@ -49,6 +53,8 @@ class UserCollection(APIView):
             data = request.data
             get_movies = CollectionManagement.add_new_collection(request, data)
             return Response({"collection_uuid": get_movies}, 200)
+        except ValidationError as ve:
+            return Response({"result": "failure", "message": ve.detail}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"result": "failure", "message": str(e)}, 500)
 
@@ -88,8 +94,9 @@ class CollectionDetailView(APIView):
     @staticmethod
     def delete(request, *args, **kwargs):
         try:
+            user_id= request.user.id
             collection_uuid = kwargs.get('collection_uuid')
-            collection = Collection.objects.get(uuid=collection_uuid)
+            collection = Collection.objects.get(uuid=collection_uuid, user_id=user_id)
             collection.delete()
             return Response({"is_success": True, "message": "Collection deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
         except Collection.DoesNotExist:
@@ -99,17 +106,13 @@ class CollectionDetailView(APIView):
 
 
 class RequestCountView(APIView):
-    # permission_classes = [IsAuthenticated]
-
     @staticmethod
     def get(request):
         count = cache.get('counter', 0)
         return Response({'requests': count})
 
 
-
 class ResetRequestCountView(APIView):
-    # permission_classes = [IsAuthenticated]
 
     @staticmethod
     def post(request):

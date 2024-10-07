@@ -8,6 +8,7 @@ from user_collection.models import Collection
 class RegisterUserTests(APITestCase):
 
     def test_register_user(self):
+        """Registration with normal values."""
         url = reverse('register_user')
         data = {
             'username': 'testuser',
@@ -17,10 +18,21 @@ class RegisterUserTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIn('access_token', response.data)
 
+    def test_register_user_missing_fields(self):
+        """Test registration with missing fields."""
+        url = reverse('register_user')
+        data = {
+            'username': 'testuser'
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('password', response.data)
+
 
 class FetchAllMoviesTests(APITestCase):
 
     def test_fetch_all_movies(self):
+        """Fetch all movies from the API"""
         url = reverse('fetch-all-movies')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -35,6 +47,7 @@ class UserCollectionTests(APITestCase):
         self.client.force_authenticate(user=self.user)
 
     def test_get_user_collection(self):
+        """Get a users all collection"""
         url = reverse('user_collection')
         CollectionFactory.create(user=self.user)
         response = self.client.get(url)
@@ -42,6 +55,7 @@ class UserCollectionTests(APITestCase):
         self.assertIn('data', response.data)
 
     def test_post_new_collection(self):
+        """Post new collection with all values"""
         url = reverse('user_collection')
         data = {
             "title": "My Farrv3",
@@ -107,8 +121,18 @@ class UserCollectionTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('collection_uuid', response.data)
 
+    def test_post_new_collection_missing_fields(self):
+        """Test posting a new collection with missing fields."""
+        url = reverse('user_collection')
+        data = {
+            "description": "Missing title",
+            "movies": []
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('result', response.data)
 
-#
+
 class CollectionDetailViewTests(APITestCase):
 
     def setUp(self):
@@ -117,12 +141,21 @@ class CollectionDetailViewTests(APITestCase):
         self.client.force_authenticate(user=self.user)
 
     def test_get_collection_detail(self):
+        """Get collection"""
         url = reverse('collection-detail', args=[self.collection.uuid])
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('data', response.data)
 
+    def test_get_collection_not_found(self):
+        """Test fetching a non-existent collection."""
+        url = reverse('collection-detail', args=['bbbfe607-b18a-4699-bed7-8690648dd6d9'])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn('message', response.data)
+
     def test_update_collection(self):
+        """Update a collection"""
         url = reverse('collection-detail', args=[self.collection.uuid])
         data = {
             'title': 'Updated Collection',
@@ -132,7 +165,26 @@ class CollectionDetailViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('data', response.data)
 
+    def test_update_collection_not_found(self):
+        """Test updating a non-existent collection."""
+        url = reverse('collection-detail', args=['bbbfe607-b18a-4699-bed7-8690648dd6d9'])
+        data = {
+            'title': 'Updated Collection',
+            'description': 'Updated description.'
+        }
+        response = self.client.put(url, data)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn('message', response.data)
+
     def test_delete_collection(self):
+        """Delete a collection"""
         url = reverse('collection-detail', args=[self.collection.uuid])
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_delete_collection_not_found(self):
+        """Test deleting a non-existent collection."""
+        url = reverse('collection-detail', args=['bbbfe607-b18a-4699-bed7-8690648dd6d9'])
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn('message', response.data)
